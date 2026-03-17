@@ -29,6 +29,7 @@ jobs:
 
       - name: Generate README and activity card
         env:
+          PROFILE_STATS_TOKEN: ${{ secrets.PROFILE_STATS_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PROFILE_USERNAME: jomeswang
         run: node scripts/generate-profile.mjs

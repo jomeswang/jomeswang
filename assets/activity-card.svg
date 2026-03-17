@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="860" height="320" viewBox="0 0 860 320" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
   <title id="title">GitHub 30-day activity summary</title>
-  <desc id="desc">Merged pull requests, additions and deletions, and commit contributions for the last 30 days.</desc>
+  <desc id="desc">Merged pull requests, additions and deletions, and authored commits for the last 30 days.</desc>
   <style>
     .canvas { fill: #F6F8FA; }
     .panel { fill: #FFFFFF; stroke: #D0D7DE; }
@@ -32,25 +32,34 @@
   <rect class="canvas" x="0" y="0" width="860" height="320" rx="28" />
   <rect class="accent" x="24" y="24" width="812" height="92" rx="24" opacity="0.16" />
   <text class="title" x="44" y="68">Last 30 Days on GitHub</text>
-  <text class="subtitle" x="44" y="93">A rolling public-activity snapshot generated automatically.</text>
+  <text class="subtitle" x="44" y="93">A rolling snapshot across repositories visible to the token.</text>
   <text class="subtitle" x="640" y="68">Window</text>
   <text class="title" x="640" y="96" text-anchor="start" style="font-size:18px;">Feb 16, 2026 - Mar 17, 2026</text>
 
   <rect class="panel" x="24" y="136" width="248" height="128" rx="22" />
   <text class="stat-label" x="44" y="168">Merged PRs</text>
-  <text class="stat-value" x="44" y="214">0</text>
-  <text class="stat-detail" x="44" y="242">Merged pull requests in public repositories</text>
+  <text class="stat-value" x="44" y="214">80</text>
+  <text class="stat-detail" x="44" y="242">Merged pull requests across accessible repos</text>
 
   <rect class="panel" x="306" y="136" width="248" height="128" rx="22" />
   <text class="stat-label" x="326" y="168">Additions / Deletions</text>
-  <text class="stat-value" x="326" y="214">+0</text>
-  <text class="stat-detail" x="326" y="242">-0 lines merged in public pull requests</text>
+  <text class="stat-value" x="326" y="214">+71,921</text>
+  <text class="stat-detail" x="326" y="242">-6,356 lines from merged pull requests</text>
 
   <rect class="panel" x="588" y="136" width="248" height="128" rx="22" />
+<<<<<<< HEAD
   <text class="stat-label" x="608" y="168">Commit Contributions</text>
   <text class="stat-value" x="608" y="214">11</text>
   <text class="stat-detail" x="608" y="242">Commits counted by GitHub contributions</text>
 
   <text class="footer" x="44" y="290">Updated: Mar 17, 2026, 17:58 Asia/Shanghai</text>
   <text class="footer" x="816" y="290" text-anchor="end">Source: GitHub GraphQL API</text>
+=======
+  <text class="stat-label" x="608" y="168">Authored Commits</text>
+  <text class="stat-value" x="608" y="214">323</text>
+  <text class="stat-detail" x="608" y="242">Commits authored across accessible repositories</text>
+
+  <text class="footer" x="44" y="290">Updated: Mar 17, 2026, 17:54 Asia/Shanghai</text>
+  <text class="footer" x="816" y="290" text-anchor="end">Source: GitHub Search API</text>
+>>>>>>> 8aae84a (fix: include accessible private activity in profile stats)
 </svg>

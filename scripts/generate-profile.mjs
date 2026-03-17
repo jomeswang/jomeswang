@@ -8,10 +8,9 @@ import { fileURLToPath } from "node:url";
 const config = {
   username: process.env.PROFILE_USERNAME || "jomeswang",
   displayName: "jomeswang",
-  role: "Web apps, automation, and AI tooling",
   timezone: "Asia/Shanghai",
   days: 30,
-  publicOnly: true,
+  scopeLabel: "repositories visible to the token",
   intro: [
     "I build web apps, automation workflows, and AI-driven product experiments.",
     "Lately I have been focused on dashboards, developer tooling, and practical full-stack products."
@@ -52,18 +51,19 @@ const readmePath = path.join(repoRoot, "README.md");
 const cardPath = path.join(repoRoot, "assets", "activity-card.svg");
 
 function getToken() {
-  if (process.env.GITHUB_TOKEN) {
-    return process.env.GITHUB_TOKEN.trim();
-  }
+  const candidates = ["PROFILE_STATS_TOKEN", "GITHUB_TOKEN", "GH_TOKEN"];
 
-  if (process.env.GH_TOKEN) {
-    return process.env.GH_TOKEN.trim();
+  for (const name of candidates) {
+    const value = process.env[name]?.trim();
+    if (value) {
+      return value;
+    }
   }
 
   try {
     return execSync("gh auth token", { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
-  } catch (error) {
-    throw new Error("Missing GITHUB_TOKEN. Set GITHUB_TOKEN or log in with gh auth login.");
+  } catch {
+    throw new Error("Missing GitHub token. Set PROFILE_STATS_TOKEN, GITHUB_TOKEN, or log in with gh auth login.");
   }
 }
 
@@ -100,6 +100,10 @@ function formatDateTime(value, locale = "en-US") {
   }).format(value);
 }
 
+function toSearchDate(value) {
+  return value.toISOString().slice(0, 10);
+}
+
 function escapeXml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -109,115 +113,144 @@ function escapeXml(value) {
     .replaceAll("'", "&apos;");
 }
 
-async function githubGraphQL(query, variables) {
-  const response = await fetch("https://api.github.com/graphql", {
-    method: "POST",
+function isWithinWindow(value, start, end) {
+  return value >= start && value <= end;
+}
+
+function uniqueBy(values, getKey) {
+  const seen = new Set();
+  const result = [];
+
+  for (const value of values) {
+    const key = getKey(value);
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    result.push(value);
+  }
+
+  return result;
+}
+
+async function githubRequest(url, options = {}) {
+  const response = await fetch(String(url), {
+    method: options.method ?? "GET",
     headers: {
       "Authorization": `Bearer ${getToken()}`,
+      "Accept": options.accept ?? "application/vnd.github+json",
       "Content-Type": "application/json",
-      "User-Agent": "jomeswang-profile-generator"
+      "User-Agent": "jomeswang-profile-generator",
+      "X-GitHub-Api-Version": "2022-11-28"
     },
-    body: JSON.stringify({ query, variables })
+    body: options.body ? JSON.stringify(options.body) : undefined
   });
 
   if (!response.ok) {
-    throw new Error(`GitHub GraphQL request failed with ${response.status} ${response.statusText}`);
+    const text = await response.text();
+    throw new Error(`GitHub request failed with ${response.status} ${response.statusText}: ${text}`);
   }
 
-  const payload = await response.json();
-
-  if (payload.errors?.length) {
-    throw new Error(payload.errors.map((entry) => entry.message).join("; "));
-  }
-
-  return payload.data;
+  return response.json();
 }
 
-async function getCommitContributions(username, start, end) {
-  const query = `
-    query($login: String!, $from: DateTime!, $to: DateTime!) {
-      user(login: $login) {
-        contributionsCollection(from: $from, to: $to) {
-          totalCommitContributions
-        }
-      }
+async function searchAll(kind, options) {
+  const items = [];
+  const perPage = 100;
+  const hardLimit = 1000;
+
+  for (let page = 1; page <= hardLimit / perPage; page += 1) {
+    const url = new URL(`https://api.github.com/search/${kind}`);
+    url.searchParams.set("q", options.query);
+    url.searchParams.set("per_page", String(perPage));
+    url.searchParams.set("page", String(page));
+
+    if (options.sort) {
+      url.searchParams.set("sort", options.sort);
     }
-  `;
 
-  const data = await githubGraphQL(query, {
-    login: username,
-    from: start.toISOString(),
-    to: end.toISOString()
-  });
+    if (options.order) {
+      url.searchParams.set("order", options.order);
+    }
 
-  return data.user?.contributionsCollection?.totalCommitContributions ?? 0;
+    const payload = await githubRequest(url, { accept: options.accept });
+    items.push(...(payload.items ?? []));
+
+    const totalCount = Math.min(payload.total_count ?? 0, hardLimit);
+    if (!payload.items?.length || payload.items.length < perPage || items.length >= totalCount) {
+      break;
+    }
+  }
+
+  return items;
+}
+
+async function mapWithConcurrency(values, limit, mapper) {
+  const results = new Array(values.length);
+  let currentIndex = 0;
+
+  async function worker() {
+    while (currentIndex < values.length) {
+      const index = currentIndex;
+      currentIndex += 1;
+      results[index] = await mapper(values[index], index);
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(limit, values.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
 }
 
 async function getMergedPullRequests(username, start, end) {
-  const query = `
-    query($searchQuery: String!, $cursor: String) {
-      search(type: ISSUE, query: $searchQuery, first: 100, after: $cursor) {
-        nodes {
-          ... on PullRequest {
-            mergedAt
-            additions
-            deletions
-            repository {
-              isPrivate
-            }
-          }
-        }
-        pageInfo {
-          hasNextPage
-          endCursor
-        }
-      }
-    }
-  `;
+  const query = `author:${username} is:pr is:merged archived:false merged:${toSearchDate(start)}..${toSearchDate(end)}`;
+  const results = await searchAll("issues", {
+    query,
+    sort: "updated",
+    order: "desc"
+  });
 
-  const fromDate = start.toISOString().slice(0, 10);
-  const toDate = end.toISOString().slice(0, 10);
-  const searchQuery = `author:${username} is:pr is:merged merged:${fromDate}..${toDate} sort:updated-desc`;
+  const detailUrls = uniqueBy(
+    results
+      .map((item) => item.pull_request?.url)
+      .filter(Boolean),
+    (url) => url
+  );
 
-  let cursor = null;
-  const pullRequests = [];
-
-  do {
-    const data = await githubGraphQL(query, { searchQuery, cursor });
-    const search = data.search;
-
-    for (const node of search.nodes ?? []) {
-      if (!node) {
-        continue;
-      }
-
-      if (config.publicOnly && node.repository?.isPrivate) {
-        continue;
-      }
-
-      const mergedAt = node.mergedAt ? new Date(node.mergedAt) : null;
-      if (!mergedAt) {
-        continue;
-      }
-
-      if (mergedAt < start || mergedAt > end) {
-        continue;
-      }
-
-      pullRequests.push(node);
-    }
-
-    cursor = search.pageInfo?.hasNextPage ? search.pageInfo.endCursor : null;
-  } while (cursor);
-
-  const additions = pullRequests.reduce((sum, pr) => sum + (pr.additions ?? 0), 0);
-  const deletions = pullRequests.reduce((sum, pr) => sum + (pr.deletions ?? 0), 0);
+  const pullRequests = await mapWithConcurrency(detailUrls, 8, async (url) => githubRequest(url));
+  const mergedPullRequests = pullRequests.filter((pullRequest) => {
+    const mergedAt = pullRequest.merged_at ? new Date(pullRequest.merged_at) : null;
+    return mergedAt && isWithinWindow(mergedAt, start, end);
+  });
 
   return {
-    count: pullRequests.length,
-    additions,
-    deletions
+    count: mergedPullRequests.length,
+    additions: mergedPullRequests.reduce((sum, pullRequest) => sum + (pullRequest.additions ?? 0), 0),
+    deletions: mergedPullRequests.reduce((sum, pullRequest) => sum + (pullRequest.deletions ?? 0), 0)
   };
+}
+
+async function getAuthoredCommitCount(username, start, end) {
+  const query = `author:${username} author-date:${toSearchDate(start)}..${toSearchDate(end)}`;
+  const results = await searchAll("commits", {
+    query,
+    sort: "author-date",
+    order: "desc",
+    accept: "application/vnd.github.cloak-preview+json"
+  });
+
+  const uniqueCommits = new Set();
+
+  for (const result of results) {
+    const authoredAt = result.commit?.author?.date ? new Date(result.commit.author.date) : null;
+    if (!authoredAt || !isWithinWindow(authoredAt, start, end)) {
+      continue;
+    }
+
+    uniqueCommits.add(`${result.repository.full_name}:${result.sha}`);
+  }
+
+  return uniqueCommits.size;
 }
 
 function buildSvgCard(stats) {
@@ -231,7 +264,7 @@ function buildSvgCard(stats) {
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="860" height="320" viewBox="0 0 860 320" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
   <title id="title">GitHub 30-day activity summary</title>
-  <desc id="desc">Merged pull requests, additions and deletions, and commit contributions for the last 30 days.</desc>
+  <desc id="desc">Merged pull requests, additions and deletions, and authored commits for the last 30 days.</desc>
   <style>
     .canvas { fill: #F6F8FA; }
     .panel { fill: #FFFFFF; stroke: #D0D7DE; }
@@ -262,27 +295,27 @@ function buildSvgCard(stats) {
   <rect class="canvas" x="0" y="0" width="860" height="320" rx="28" />
   <rect class="accent" x="24" y="24" width="812" height="92" rx="24" opacity="0.16" />
   <text class="title" x="44" y="68">Last 30 Days on GitHub</text>
-  <text class="subtitle" x="44" y="93">A rolling public-activity snapshot generated automatically.</text>
+  <text class="subtitle" x="44" y="93">A rolling snapshot across ${escapeXml(config.scopeLabel)}.</text>
   <text class="subtitle" x="640" y="68">Window</text>
   <text class="title" x="640" y="96" text-anchor="start" style="font-size:18px;">${escapeXml(windowLabel)}</text>
 
   <rect class="panel" x="24" y="136" width="248" height="128" rx="22" />
   <text class="stat-label" x="44" y="168">Merged PRs</text>
   <text class="stat-value" x="44" y="214">${escapeXml(mergedPrs)}</text>
-  <text class="stat-detail" x="44" y="242">Merged pull requests in public repositories</text>
+  <text class="stat-detail" x="44" y="242">Merged pull requests across accessible repos</text>
 
   <rect class="panel" x="306" y="136" width="248" height="128" rx="22" />
   <text class="stat-label" x="326" y="168">Additions / Deletions</text>
   <text class="stat-value" x="326" y="214">+${escapeXml(additions)}</text>
-  <text class="stat-detail" x="326" y="242">-${escapeXml(deletions)} lines merged in public pull requests</text>
+  <text class="stat-detail" x="326" y="242">-${escapeXml(deletions)} lines from merged pull requests</text>
 
   <rect class="panel" x="588" y="136" width="248" height="128" rx="22" />
-  <text class="stat-label" x="608" y="168">Commit Contributions</text>
+  <text class="stat-label" x="608" y="168">Authored Commits</text>
   <text class="stat-value" x="608" y="214">${escapeXml(commits)}</text>
-  <text class="stat-detail" x="608" y="242">Commits counted by GitHub contributions</text>
+  <text class="stat-detail" x="608" y="242">Commits authored across accessible repositories</text>
 
   <text class="footer" x="44" y="290">Updated: ${escapeXml(updatedLabel)}</text>
-  <text class="footer" x="816" y="290" text-anchor="end">Source: GitHub GraphQL API</text>
+  <text class="footer" x="816" y="290" text-anchor="end">Source: GitHub Search API</text>
 </svg>
 `;
 }
@@ -313,9 +346,11 @@ ${focusLines}
 | --- | --- |
 | Merged PRs | **${mergedPrs}** |
 | Additions / Deletions | **+${additions} / -${deletions}** |
-| Commit contributions | **${commits}** |
+| Authored commits | **${commits}** |
 | Window | **${windowLabel}** |
 | Last updated | **${updatedLabel}** |
+
+These stats cover **${config.scopeLabel}**. When the PROFILE_STATS_TOKEN secret is configured in this repo, that includes private and organization repositories the token can read.
 
 ## Featured Projects
 
@@ -325,17 +360,17 @@ ${projectRows}
 
 ## How This README Works
 
-- [scripts/generate-profile.mjs](./scripts/generate-profile.mjs) pulls the latest activity data from the GitHub GraphQL API.
+- [scripts/generate-profile.mjs](./scripts/generate-profile.mjs) pulls PR and commit data from the GitHub Search API.
 - [assets/activity-card.svg](./assets/activity-card.svg) is regenerated together with this README so the card always stays in sync.
 - [.github/workflows/update-profile.yml](./.github/workflows/update-profile.yml) refreshes the snapshot every day and on manual runs.
-- The current stats are based on public activity only.
+- GitHub's contribution graph can still look larger because it also includes issues, reviews, and restricted private contributions.
 `;
 }
 
 async function main() {
   const { start, end } = getWindow(config.days);
   const [commits, pullRequests] = await Promise.all([
-    getCommitContributions(config.username, start, end),
+    getAuthoredCommitCount(config.username, start, end),
     getMergedPullRequests(config.username, start, end)
   ]);
 
@@ -355,7 +390,7 @@ async function main() {
   console.log(`Generated README and card for ${config.username}`);
   console.log(`Merged PRs: ${stats.mergedPrs}`);
   console.log(`Additions / Deletions: +${stats.additions} / -${stats.deletions}`);
-  console.log(`Commit contributions: ${stats.commits}`);
+  console.log(`Authored commits: ${stats.commits}`);
 }
 
 main().catch((error) => {

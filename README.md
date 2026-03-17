@@ -12,11 +12,21 @@ I build web apps, automation workflows, and AI-driven product experiments. Latel
 
 | Metric | Value |
 | --- | --- |
+<<<<<<< HEAD
 | Merged PRs | **0** |
 | Additions / Deletions | **+0 / -0** |
 | Commit contributions | **11** |
 | Window | **Feb 16, 2026 - Mar 17, 2026** |
 | Last updated | **Mar 17, 2026, 17:58 Asia/Shanghai** |
+=======
+| Merged PRs | **80** |
+| Additions / Deletions | **+71,921 / -6,356** |
+| Authored commits | **323** |
+| Window | **Feb 16, 2026 - Mar 17, 2026** |
+| Last updated | **Mar 17, 2026, 17:54 Asia/Shanghai** |
+
+These stats cover **repositories visible to the token**. When the PROFILE_STATS_TOKEN secret is configured in this repo, that includes private and organization repositories the token can read.
+>>>>>>> 8aae84a (fix: include accessible private activity in profile stats)
 
 ## Featured Projects
 
@@ -29,7 +39,7 @@ I build web apps, automation workflows, and AI-driven product experiments. Latel
 
 ## How This README Works
 
-- [scripts/generate-profile.mjs](./scripts/generate-profile.mjs) pulls the latest activity data from the GitHub GraphQL API.
+- [scripts/generate-profile.mjs](./scripts/generate-profile.mjs) pulls PR and commit data from the GitHub Search API.
 - [assets/activity-card.svg](./assets/activity-card.svg) is regenerated together with this README so the card always stays in sync.
 - [.github/workflows/update-profile.yml](./.github/workflows/update-profile.yml) refreshes the snapshot every day and on manual runs.
-- The current stats are based on public activity only.
+- GitHub's contribution graph can still look larger because it also includes issues, reviews, and restricted private contributions.
