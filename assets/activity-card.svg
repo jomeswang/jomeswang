@@ -34,23 +34,23 @@
   <text class="title" x="44" y="68">Last 30 Days on GitHub</text>
   <text class="subtitle" x="44" y="93">A rolling snapshot across repositories visible to the token.</text>
   <text class="subtitle" x="640" y="68">Window</text>
-  <text class="title" x="640" y="96" text-anchor="start" style="font-size:18px;">Mar 7, 2026 - Apr 5, 2026</text>
+  <text class="title" x="640" y="96" text-anchor="start" style="font-size:18px;">Mar 8, 2026 - Apr 6, 2026</text>
 
   <rect class="panel" x="24" y="136" width="248" height="128" rx="22" />
   <text class="stat-label" x="44" y="168">Merged PRs</text>
-  <text class="stat-value" x="44" y="214">176</text>
+  <text class="stat-value" x="44" y="214">171</text>
   <text class="stat-detail" x="44" y="242">Merged pull requests across accessible repos</text>
 
   <rect class="panel" x="306" y="136" width="248" height="128" rx="22" />
   <text class="stat-label" x="326" y="168">Additions / Deletions</text>
-  <text class="stat-value" x="326" y="214">+146,624</text>
-  <text class="stat-detail" x="326" y="242">-22,979 lines from merged pull requests</text>
+  <text class="stat-value" x="326" y="214">+136,765</text>
+  <text class="stat-detail" x="326" y="242">-22,920 lines from merged pull requests</text>
 
   <rect class="panel" x="588" y="136" width="248" height="128" rx="22" />
   <text class="stat-label" x="608" y="168">Authored Commits</text>
-  <text class="stat-value" x="608" y="214">689</text>
+  <text class="stat-value" x="608" y="214">661</text>
   <text class="stat-detail" x="608" y="242">Commits authored across accessible repositories</text>
 
-  <text class="footer" x="44" y="290">Updated: Apr 5, 2026, 12:09 Asia/Shanghai</text>
+  <text class="footer" x="44" y="290">Updated: Apr 6, 2026, 12:16 Asia/Shanghai</text>
   <text class="footer" x="816" y="290" text-anchor="end">Source: GitHub Search API</text>
 </svg>
