@@ -12,11 +12,11 @@ I build web apps, automation workflows, and AI-driven product experiments. Latel
 
 | Metric | Value |
 | --- | --- |
-| Merged PRs | **347** |
-| Additions / Deletions | **+514,585 / -332,552** |
-| Authored commits | **644** |
-| Window | **Oct 22, 2026 - Nov 20, 2026** |
-| Last updated | **Nov 20, 2026, 16:30 Asia/Shanghai** |
+| Merged PRs | **334** |
+| Additions / Deletions | **+508,601 / -331,326** |
+| Authored commits | **593** |
+| Window | **Oct 23, 2026 - Nov 21, 2026** |
+| Last updated | **Nov 21, 2026, 16:15 Asia/Shanghai** |
 
 These stats cover **repositories visible to the token**. When the PROFILE_STATS_TOKEN secret is configured in this repo, that includes private and organization repositories the token can read.
 
